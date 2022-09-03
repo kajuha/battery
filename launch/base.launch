@@ -1,0 +1,10 @@
+<launch>
+  <arg name="message_display" default="screen" doc="output type"/>
+  
+  <node pkg="battery" type="battery" name="battery" output="$(arg message_display)">
+    <param name="serial_port" value="/dev/recipe.driver.battery" />
+    <param name="baud_rate" value="19200" />
+    <param name="slave_num" value="10" />
+    <param name="node_name" value="battery" />
+  </node>
+</launch>
