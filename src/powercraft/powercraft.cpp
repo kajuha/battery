@@ -1,6 +1,5 @@
 #include <ros/ros.h>
 #include <std_msgs/Float64.h>
-#include <sensor_msgs/Range.h>
 #include <sensor_msgs/BatteryState.h>
 
 #include <unistd.h>
@@ -16,6 +15,9 @@
 
 #include <modbus.h>
 
+#include <string.h>
+#define __FILENAME__ (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
+
 using namespace std;
 
 int main(int argc, char* argv[])
@@ -26,13 +28,21 @@ int main(int argc, char* argv[])
 	std::string serial_port;
 	int baud_rate;
 	int slave_num;
+	std::string bms_model;
+	
+	printf("CMAKE BUILD BMS: %d\n", BMS);
 
 	// ros::param::get("~serial_port", serial_port);
 	// ros::param::get("~baud_rate", baud_rate);
 	// ros::param::get("~slave_num", slave_num);
+	// ros::param::get("~bms_model", bms_model);
 	nh.getParam("serial_port", serial_port);
 	nh.getParam("baud_rate", baud_rate);
 	nh.getParam("slave_num", slave_num);
+	nh.getParam("bms_model", bms_model);
+	
+	printf("FILE NAME : %s\n", __FILENAME__);
+	printf("BMS MODEL : %s\n", bms_model.c_str());
 
 	ros::Publisher battery_pub = nh.advertise<sensor_msgs::BatteryState>("battery", 1000, true);
 
