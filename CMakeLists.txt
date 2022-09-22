@@ -66,7 +66,7 @@ if(${BMS} EQUAL ${BMS_QUCC})
     ${catkin_INCLUDE_DIRS}
   )
 
-  add_executable(battery src/qucc/qucc.cpp)
+  add_executable(battery src/qucc/main.cpp src/qucc/qucc.cpp)
   target_link_libraries(battery ${catkin_LIBRARIES})
   add_dependencies(battery ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 elseif(${BMS} EQUAL ${BMS_POWERCRAFT})

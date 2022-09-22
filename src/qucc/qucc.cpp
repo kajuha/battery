@@ -1,61 +1,267 @@
-#include <stdio.h>
-#include <inttypes.h>
+#include <unistd.h>
+#include <pthread.h>
+#include <semaphore.h>
+#include <fcntl.h>
+#include <termios.h>
+#include <sys/time.h>
 #include <string.h>
+
+#include <iostream>
+#include <queue>
+
+#include <chrono>
+#include <iostream>
+#include <sys/time.h>
+#include <ctime>
 
 #include "qucc.h"
 
-#define SWAP_BYTE 1
-#define SHIFT_BIT (SWAP_BYTE*8)
+Qucc::Qucc() {
+}
 
-#define SWAP_2BYTE(x) ((x>>SHIFT_BIT)|(x<<SHIFT_BIT))
+Qucc::Qucc(std::string serialPort, int baudrate) {
+	this->serialPort = serialPort;
+	this->baudrate = baudrate;
+}
 
-typedef struct _QuccData {
-	uint16_t total_voltage_10mv;
-	uint16_t current_10ma;
-	uint16_t remaining_capacity_10mah;
-	uint16_t norminal_capacity_10mah;
-	uint16_t number_of_cycles;
-	uint16_t production_date;
-	uint16_t balanced_state;
-	uint16_t balanced_state_high;
-	uint16_t protection_status;
-	uint8_t software_version;
-	uint8_t rsoc;
-	uint8_t fet_control_state;
-	uint8_t number_of_battery_strings;
-	uint8_t number_of_ntc;
-	uint16_t ntc_1st;
-	uint16_t ntc_2nd;
-	uint16_t ntc_3rd;
-	uint16_t ntc_4th;
-} QuccData;
+bool Qucc::initSerial()	{
+	const char* COMM_PORT = serialPort.c_str();
 
-typedef struct _QuccInfo {
-	double voltage_v;
-	double current_a;
-	double remaining_capacity_ah;
-	double norminal_capacity_ah;
-	uint16_t cycles;
-	uint16_t production_date;
-	uint16_t balanced_low;
-	uint16_t balanced_high;
-	uint16_t protection_status;
-	uint8_t software_version;
-	double remaining_capacity_percent;
-	uint8_t fet_control_state;
-	uint8_t number_of_battery_strings;
-	uint8_t number_of_ntc;
-	double celsius_1st;
-	double celsius_2nd;
-	double celsius_3rd;
-	double celsius_4th;
-} QuccInfo;
+	if(-1 == (fd = open(COMM_PORT, O_RDWR))) {
+		printf("error opening port\n");
+		printf("set port parameters using the following Linux command:\n");
+		printf("stty -F %s %d raw\n", COMM_PORT, baudrate);
+		printf("you may need to have ROOT access\n");
+		return false;
+	}
 
-#define QUCC_INFO_STATUS
+	struct termios newtio;
+	memset(&newtio, 0, sizeof(newtio));
+	
+	switch(baudrate) {
+		case 921600:
+			newtio.c_cflag = B921600;
+			break;
+		case 576000:
+			newtio.c_cflag = B576000;
+			break;
+		case 500000:
+			newtio.c_cflag = B500000;
+			break;
+		case 460800:
+			newtio.c_cflag = B460800;
+			break;
+		case 230400:
+			newtio.c_cflag = B230400;
+			break;
+		case 115200:
+			newtio.c_cflag = B115200;
+			break;
+		case 57600:
+			newtio.c_cflag = B57600;
+			break;
+		case 38400:
+			newtio.c_cflag = B38400;
+			break;
+		case 19200:
+			newtio.c_cflag = B19200;
+			break;
+		case 9600:
+			newtio.c_cflag = B9600;
+			break;
+		case 4800:
+			newtio.c_cflag = B4800;
+			break;
+		default:
+			printf("unsupported baudrate!");
+			exit(0);
+	}
+	newtio.c_cflag |= CS8;
+	newtio.c_cflag |= CLOCAL;
+	newtio.c_cflag |= CREAD;
+	newtio.c_iflag = 0;
+	newtio.c_oflag = 0;
+	newtio.c_lflag = 0;
+	newtio.c_cc[VTIME] = 0;
+	#if 0
+	newtio.c_cc[VMIN] = 1; 
+	#else
+	newtio.c_cc[VMIN] = 0;
+	#endif
 
-int parseRxData(QuccData quccData) {
+	tcflush(fd, TCIOFLUSH);
+	tcsetattr(fd, TCSANOW, &newtio);
+
+	printf("qucc communication port is ready\n");
+
+	return true;
+}
+
+void Qucc::closeSerial() {
+	close(fd);
+	printf("closing qucc\n");
+}
+
+bool Qucc::sendQuccCmd() {
+	// 송신 포맷 생성
+	serialBufferTx[QUCC_TX_START_IDX] = QUCC_TX_START_VAL;
+	serialBufferTx[QUCC_TX_STATUS_IDX] = QUCC_TX_STATUS_VAL;
+	serialBufferTx[QUCC_TX_COMMAND_IDX] = QUCC_TX_COMMAND_VAL;
+	serialBufferTx[QUCC_TX_DATA_IDX] = QUCC_TX_DATA_VAL;
+	// CHECKSUM
+	*(uint16_t*)(serialBufferTx+QUCC_TX_CHECKSUM_IDX) = QUCC_TX_CHECKSUM_VAL;
+	serialBufferTx[QUCC_TX_END_IDX] = QUCC_TX_END_VAL;
+
+	write(fd, serialBufferTx, QUCC_TX_LEN);
+
+	return true;
+}
+
+bool Qucc::receiveQuccState(bool enableParsing) {
+	int rx_size;
+
+	memset(serialBufferRx, '\0', sizeof(serialBufferRx));
+
+	rx_size = read(fd, serialBufferRx, BUFSIZ);
+
+	for (int i=0; i<rx_size; i++) {
+		queSerialRx.push(serialBufferRx[i]);
+	}
+
+	if (enableParsing) {
+		parseQuccState();
+	} else {
+		if (queSerialRx.size()) {
+			for (int i=0; i<rx_size; i++) {
+				printf("[%02x]", queSerialRx.front());
+				queSerialRx.pop();
+			}
+			printf("\n");
+		}
+	}
+
+	return true;
+}
+
+bool Qucc::parseQuccState() {
+	static int state = FSM_QUCC_RX::START;
+	static uint8_t recv[BUFSIZ] = {'\0', };
+	static uint8_t qucc_rx_checksum_idx = 0;
+
+	switch (state) {
+		case FSM_QUCC_RX::START:
+			if (queSerialRx.size() >= QUCC_RX_START_LEN) {
+				recv[QUCC_RX_START_IDX] = queSerialRx.front();
+				if (recv[QUCC_RX_START_IDX] == QUCC_RX_START_VAL) {
+					state = FSM_QUCC_RX::COMMAND;
+				} else {
+					printf("FSM_QUCC_RX::START not Match \n");
+					state = FSM_QUCC_RX::START;
+				}
+				queSerialRx.pop();
+			}
+			break;
+		case FSM_QUCC_RX::COMMAND:
+			if (queSerialRx.size() >= QUCC_RX_COMMAND_LEN) {
+				recv[QUCC_RX_COMMAND_IDX] = queSerialRx.front();
+				if (recv[QUCC_RX_COMMAND_IDX] == QUCC_RX_COMMAND_VAL) {
+					state = FSM_QUCC_RX::STATUS;
+				} else {
+					printf("FSM_QUCC_RX::COMMAND not Match \n");
+					state = FSM_QUCC_RX::COMMAND;
+				}
+				queSerialRx.pop();
+			}
+			break;
+		case FSM_QUCC_RX::STATUS:
+			if (queSerialRx.size() >= QUCC_RX_STATUS_LEN) {
+				recv[QUCC_RX_STATUS_IDX] = queSerialRx.front();
+				if (recv[QUCC_RX_STATUS_IDX] == QUCC_RX_STATUS_VAL) {
+					state = FSM_QUCC_RX::LENGTH;
+				} else {
+					printf("FSM_QUCC_RX::STATUS not Match \n");
+					state = FSM_QUCC_RX::STATUS;
+				}
+				queSerialRx.pop();
+			}
+			break;
+		case FSM_QUCC_RX::LENGTH:
+			if (queSerialRx.size() >= QUCC_RX_LENGTH_LEN) {
+				recv[QUCC_RX_LENGTH_IDX] = queSerialRx.front();
+				if (recv[QUCC_RX_LENGTH_IDX] == QUCC_RX_LENGTH_VAL) {
+					state = FSM_QUCC_RX::DATA;
+				} else {
+					printf("FSM_QUCC_RX::LENGTH not Match \n");
+					state = FSM_QUCC_RX::LENGTH;
+				}
+				queSerialRx.pop();
+			}
+			break;
+		case FSM_QUCC_RX::DATA:
+			if (queSerialRx.size() >= QUCC_RX_LENGTH_VAL) {
+				for (int i=0; i<QUCC_RX_LENGTH_VAL; i++) {
+					recv[QUCC_RX_DATA_IDX+i] = queSerialRx.front();
+					queSerialRx.pop();
+				}
+
+				state = FSM_QUCC_RX::CHECKSUM;
+			}
+			break;
+		case FSM_QUCC_RX::CHECKSUM:
+			if (queSerialRx.size() >= QUCC_RX_CHECKSUM_LEN) {
+				for (int i=0; i<QUCC_RX_CHECKSUM_LEN; i++) {
+					recv[QUCC_RX_CHECKSUM_IDX+i] = queSerialRx.front();
+					queSerialRx.pop();
+				}
+
+				state = FSM_QUCC_RX::END;
+			}
+			break;
+		case FSM_QUCC_RX::END:
+			if (queSerialRx.size() >= QUCC_RX_END_LEN) {
+				recv[QUCC_RX_END_IDX] = queSerialRx.front();
+				if (recv[QUCC_RX_END_IDX] == QUCC_RX_END_VAL) {
+					state = FSM_QUCC_RX::OK;
+				} else {
+					printf("FSM_QUCC_RX::END not Match\n");
+					for (int i=0; i<QUCC_RX_LEN; i++) {
+						printf("[%02x]", recv[i]);
+					}
+					printf("\n");
+					state = FSM_QUCC_RX::START;
+				}
+				queSerialRx.pop();
+			}
+			break;
+		case FSM_QUCC_RX::OK:
+			if (isValidChecksum(recv)) {
+				if (recv[QUCC_RX_STATUS_IDX] == 0x00) {
+					QuccData quccData;
+					memcpy((uint8_t*)(&quccData), recv+QUCC_RX_DATA_IDX, recv[QUCC_RX_LENGTH_IDX]);
+					parseRxData(quccData);
+				} else {
+					printf("QUCC_RX_STATUS_VAL is not ZERO : 0x%x\n", recv[QUCC_RX_STATUS_IDX]);
+				}
+			}
+
+			memset(recv, '\0', QUCC_RX_LEN);
+			
+			state = FSM_QUCC_RX::START;
+
+			break;
+		default:
+			state = FSM_QUCC_RX::START;
+
+			break;
+	}
+	
+	return false;
+}
+
+int Qucc::parseRxData(QuccData quccData) {
 	static QuccInfo quccInfo = {0, };
 
+#if 1
 	// 총전압(raw unit: 10mV)
 	quccData.total_voltage_10mv = SWAP_2BYTE(quccData.total_voltage_10mv);
 	quccInfo.voltage_v = quccData.total_voltage_10mv / 100.0;
@@ -140,11 +346,12 @@ int parseRxData(QuccData quccData) {
 	printf("ntc4 : %d\n", quccData.ntc_4th);
 	printf("온도4 : %.3lf\n", quccInfo.celsius_4th);
 #endif
+#endif
 
 	return QUCC_RX_SUCCESS;
 }
 
-int isValidChecksum(uint8_t *recv) {
+int Qucc::isValidChecksum(uint8_t* recv) {
 	// START 검사
 	uint8_t qucc_rx_start_val;
 	qucc_rx_start_val = recv[QUCC_RX_START_IDX];
@@ -171,16 +378,22 @@ int isValidChecksum(uint8_t *recv) {
 	uint16_t checksum;
 	checksum = 0;
 	uint16_t qucc_rx_checksum_byte_len;
+	#if 0
 	qucc_rx_checksum_byte_len = (QUCC_RX_STATUS_LEN+QUCC_RX_LENGTH_LEN+recv[QUCC_RX_LENGTH_IDX]);
-	// printf("checksum len: 0x%x\n", qucc_rx_checksum_byte_len);
+	#else
+	qucc_rx_checksum_byte_len = (QUCC_RX_STATUS_LEN+QUCC_RX_LENGTH_LEN+QUCC_RX_LENGTH_VAL);
+	#endif
 	for (int i=QUCC_RX_CHECKSUM_START_IDX; i<(QUCC_RX_CHECKSUM_START_IDX+qucc_rx_checksum_byte_len); i++) {
 		checksum += recv[i];
 	}
 	checksum = ~checksum + 1;
-	// printf("checksum: 0x%x\n", checksum);
 
 	uint16_t qucc_rx_checksum_idx;
+	#if 0
 	qucc_rx_checksum_idx = recv[QUCC_RX_LENGTH_IDX] + (QUCC_RX_LENGTH_IDX+QUCC_RX_LENGTH_LEN);
+	#else
+	qucc_rx_checksum_idx = QUCC_RX_LENGTH_VAL + QUCC_RX_LENGTH_IDX + QUCC_RX_LENGTH_LEN;
+	#endif
 	uint16_t qucc_rx_checksum_val;
 	qucc_rx_checksum_val = *(uint16_t*)(recv + qucc_rx_checksum_idx);
 	#if 0
@@ -196,35 +409,3 @@ int isValidChecksum(uint8_t *recv) {
 
 	return QUCC_RX_VALID;
 }
-
-#if 1
-int test() {
-	uint8_t send[] = {0xDD, 0xA5, 0x03, 0x00, 0xFF, 0xFD, 0x77};
-	// 프로토콜 예시데이터
-	// uint8_t recv[] = {0xDD, 0x03, 0x00, 0x1B, 0x17, 0x00, 0x00, 0x00, 0x02, 0xD0, 0x03, 0xE8, 0x00, 0x00, 0x20, 0x78, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10, 0x48, 0x03, 0x0F, 0x02, 0x0B, 0x76, 0x0B, 0x82, 0xFB, 0xFF, 0x77};
-	// 실제데이터
-	uint8_t recv[] = {0xDD, 0x03, 0x00, 0x1B, 0x0A, 0x69, 0x00, 0x00, 0x0A, 0xF0, 0x0C, 0xC9, 0x00, 0x02, 0x2C, 0xED, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x28, 0x56, 0x01, 0x08, 0x02, 0x0B, 0xAC, 0x0B, 0xAF, 0xFA, 0x8E, 0x77};
-	// 프로토콜 설명데이터
-	// uint8_t recv[] = {0xDD, 0x03, 0x00, 0x1B, 0x19, 0xDF, 0xF8, 0x24, 0x0D, 0xA5, 0x0F, 0xA0, 0x00, 0x02, 0x24, 0x91, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x12, 0x57, 0x11, 0x04, 0x02, 0x98, 0x0B, 0xA9, 0x0B, 0xF9, 0xE2, 0x77};
-
-	if (isValidChecksum(recv)) {
-		if (recv[QUCC_RX_STATUS_IDX] == 0x00) {
-			QuccData quccData;
-			memcpy((uint8_t*)(&quccData), recv+QUCC_RX_DATA_IDX, recv[QUCC_RX_LENGTH_IDX]);
-			parseRxData(quccData);
-		} else {
-			printf("QUCC_RX_STATUS_VAL is not ZERO : 0x%x\n", recv[QUCC_RX_STATUS_IDX]);
-		}
-	}
-
-	return 0;
-}
-#endif
-
-#if 1
-int main() {
-	test();
-
-	return 0;
-}
-#endif
