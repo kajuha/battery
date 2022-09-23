@@ -22,6 +22,7 @@ Qucc::Qucc() {
 Qucc::Qucc(std::string serialPort, int baudrate) {
 	this->serialPort = serialPort;
 	this->baudrate = baudrate;
+	this->isParsed = false;
 }
 
 bool Qucc::initSerial()	{
@@ -369,6 +370,8 @@ QuccInfo Qucc::parseRxData(QuccData quccData) {
 	printf("ntc4 : %d\n", quccData.ntc_4th);
 	printf("온도4 : %.3lf\n", quccInfo.celsius_4th);
 	#endif
+
+	isParsed = true;
 
 	return quccInfo;
 }

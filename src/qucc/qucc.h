@@ -139,6 +139,8 @@ public:
 
 	QuccData _quccData;
 	QuccInfo _quccInfo;
+
+	bool isParsed;
 	
 	Qucc();
 	Qucc(std::string serialPort, int baudrate);
