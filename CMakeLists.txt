@@ -14,8 +14,8 @@ if(${BMS})
 # 반드시 catkin clean battery를 한 뒤에 빌드할 것
 else()
   message("NO commandline BMS")
-  set(BMS ${BMS_QUCC})
-  # set(BMS ${BMS_POWERCRAFT})
+  # set(BMS ${BMS_QUCC})
+  set(BMS ${BMS_POWERCRAFT})
 endif()
 
 if(${BMS})
