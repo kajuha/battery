@@ -14,7 +14,7 @@ Qucc qucc;
 int main() {
 	int i = 0;
 
-	qucc = Qucc("/dev/ttyUSB0", 9600);
+	qucc = Qucc("/dev/recipe.driver.battery", 9600);
 
 	if (qucc.initSerial() == false) {
 		return 0;

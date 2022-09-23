@@ -136,6 +136,9 @@ public:
 	int fd;
 	uint8_t serialBufferRx[BUFSIZ];
 	uint8_t serialBufferTx[BUFSIZ];
+
+	QuccData _quccData;
+	QuccInfo _quccInfo;
 	
 	Qucc();
 	Qucc(std::string serialPort, int baudrate);
@@ -146,5 +149,5 @@ public:
 	bool receiveQuccState(bool enableParsing=true);
 	bool parseQuccState();
 	int isValidChecksum(uint8_t *recv);
-	int parseRxData(QuccData quccData);
+	QuccInfo parseRxData(QuccData quccData);
 };

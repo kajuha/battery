@@ -236,9 +236,8 @@ bool Qucc::parseQuccState() {
 		case FSM_QUCC_RX::OK:
 			if (isValidChecksum(recv)) {
 				if (recv[QUCC_RX_STATUS_IDX] == 0x00) {
-					QuccData quccData;
-					memcpy((uint8_t*)(&quccData), recv+QUCC_RX_DATA_IDX, recv[QUCC_RX_LENGTH_IDX]);
-					parseRxData(quccData);
+					memcpy((uint8_t*)(&_quccData), recv+QUCC_RX_DATA_IDX, recv[QUCC_RX_LENGTH_IDX]);
+					_quccInfo = parseRxData(_quccData);
 				} else {
 					printf("QUCC_RX_STATUS_VAL is not ZERO : 0x%x\n", recv[QUCC_RX_STATUS_IDX]);
 				}
@@ -258,68 +257,54 @@ bool Qucc::parseQuccState() {
 	return false;
 }
 
-int Qucc::parseRxData(QuccData quccData) {
+QuccInfo Qucc::parseRxData(QuccData quccData) {
 	static QuccInfo quccInfo = {0, };
 
 #if 1
 	// 총전압(raw unit: 10mV)
 	quccData.total_voltage_10mv = SWAP_2BYTE(quccData.total_voltage_10mv);
 	quccInfo.voltage_v = quccData.total_voltage_10mv / 100.0;
-	printf("총전압(raw unit: 10mV) : %d\n", quccData.total_voltage_10mv);
-	printf("총전압(V) : %.3lf\n", quccInfo.voltage_v);
 	// 전류소비량(raw unit: 10mA)
 	quccData.current_10ma = SWAP_2BYTE(quccData.current_10ma);
 	#define MSB_DISCHARGE 15
 	#define IS_DISCHARGE(x) ((x>>MSB_DISCHARGE) & 0x0001)
 	#define CALC_CURRENT_A(x) ((65536.0-(double)x)/100.0)
-	quccInfo.current_a = IS_DISCHARGE(quccData.current_10ma)?CALC_CURRENT_A(quccData.current_10ma)*-1.0:CALC_CURRENT_A(quccData.current_10ma);
-	printf("전류소비량(raw unit: 10mA) : %d\n", quccData.current_10ma);
-	printf("전류소비량(A) : %.3lf\n", quccInfo.current_a);
+	if (quccData.current_10ma) {
+		quccInfo.current_a = IS_DISCHARGE(quccData.current_10ma)?CALC_CURRENT_A(quccData.current_10ma)*-1.0:CALC_CURRENT_A(quccData.current_10ma);
+	} else {
+		quccInfo.current_a = 0.0;
+	}
 	// 잔여용량(raw unit: 10mAh)
 	quccData.remaining_capacity_10mah = SWAP_2BYTE(quccData.remaining_capacity_10mah);
 	quccInfo.remaining_capacity_ah = quccData.remaining_capacity_10mah / 100.0;
-	printf("잔여용량(raw unit: 10mAh) : %d\n", quccData.remaining_capacity_10mah);
-	printf("잔여용량(Ah) : %.3lf\n", quccInfo.remaining_capacity_ah);
 	// 총용량(raw unit: 10mAh)
 	quccData.norminal_capacity_10mah = SWAP_2BYTE(quccData.norminal_capacity_10mah);
 	quccInfo.norminal_capacity_ah = quccData.norminal_capacity_10mah / 100.0;
-	printf("총용량(raw unit: 10mAh) : %d\n", quccData.norminal_capacity_10mah);
-	printf("총용량(Ah) : %.3lf\n", quccInfo.norminal_capacity_ah);
 	// 사이클 횟수
 	quccData.number_of_cycles = SWAP_2BYTE(quccData.number_of_cycles);
 	quccInfo.cycles = quccData.number_of_cycles;
-	printf("사이클 횟수 : %d\n", quccData.number_of_cycles);
 	// 제조일
 	quccData.production_date = SWAP_2BYTE(quccData.production_date);
 	quccInfo.production_date = quccData.production_date;
-	printf("제조일 : %d\n", quccData.production_date);
 	// low balanced
 	quccData.balanced_state = SWAP_2BYTE(quccData.balanced_state);
 	quccInfo.balanced_low = quccData.balanced_state;
-	printf("low balanced : %d\n", quccData.balanced_state);
 	// high balanced
 	quccData.balanced_state_high = SWAP_2BYTE(quccData.balanced_state_high);
 	quccInfo.balanced_high = quccData.balanced_state_high;
-	printf("high balanced : %d\n", quccData.balanced_state_high);
 	// 보호 상태
 	quccData.protection_status = SWAP_2BYTE(quccData.protection_status);
 	quccInfo.protection_status = quccData.protection_status;
-	printf("보호 상태 : %d\n", quccData.protection_status);
 	// 소프트웨어버전
 	quccInfo.software_version = quccData.software_version;
-	printf("소프트웨어버전 : %d\n", quccData.software_version);
 	// 잔여용량(%)
 	quccInfo.remaining_capacity_percent = quccData.rsoc;
-	printf("잔여용량(%%) : %d\n", quccData.rsoc);
 	// MOS 상태
 	quccInfo.fet_control_state = quccData.fet_control_state;
-	printf("MOS 상태 : %d\n", quccData.fet_control_state);
 	// 셀 수량
 	quccInfo.number_of_battery_strings = quccData.number_of_battery_strings;
-	printf("셀 수량 : %d\n", quccData.number_of_battery_strings);
 	// 온도계 수량
 	quccInfo.number_of_ntc = quccData.number_of_ntc;
-	printf("온도계 수량 : %d\n", quccData.number_of_ntc);
 
 	// 프로토콜과 상이함
 #if 0
@@ -327,28 +312,65 @@ int Qucc::parseRxData(QuccData quccData) {
 	#define ADC_TO_DEG(x) ((x-ZERO_DEG_ADC)/10.0)
 	// ntc1 온도
 	quccData.ntc_1st = SWAP_2BYTE(quccData.ntc_1st);
-	quccInfo.celsius_1st = ADC_TO_DEG(quccData.ntc_1st);
-	printf("ntc1 : %d\n", quccData.ntc_1st);
-	printf("온도1 : %.3lf\n", quccInfo.celsius_1st);
+	if (quccData.ntc_1st) {
+		quccInfo.celsius_1st = ADC_TO_DEG(quccData.ntc_1st);
+	} else {
+		quccInfo.celsius_1st = 0.0;
+	}
 	// ntc2 온도
 	quccData.ntc_2nd = SWAP_2BYTE(quccData.ntc_2nd);
-	quccInfo.celsius_2nd = ADC_TO_DEG(quccData.ntc_2nd);
-	printf("ntc2 : %d\n", quccData.ntc_2nd);
-	printf("온도2 : %.3lf\n", quccInfo.celsius_2nd);
+	if (quccData.ntc_2nd) {
+		quccInfo.celsius_2nd = ADC_TO_DEG(quccData.ntc_2nd);
+	} else {
+		quccInfo.celsius_2nd = 0.0;
+	}
 	// ntc3 온도
 	quccData.ntc_3rd = SWAP_2BYTE(quccData.ntc_3rd);
-	quccInfo.celsius_3rd = ADC_TO_DEG(quccData.ntc_3rd);
-	printf("ntc3 : %d\n", quccData.ntc_3rd);
-	printf("온도3 : %.3lf\n", quccInfo.celsius_3rd);
+	if (quccData.ntc_3rd) {
+		quccInfo.celsius_3rd = ADC_TO_DEG(quccData.ntc_3rd);
+	} else {
+		quccInfo.celsius_3rd = 0.0;
+	}
 	// ntc4 온도
 	quccData.ntc_4th = SWAP_2BYTE(quccData.ntc_4th);
-	quccInfo.celsius_4th = ADC_TO_DEG(quccData.ntc_4th);
-	printf("ntc4 : %d\n", quccData.ntc_4th);
-	printf("온도4 : %.3lf\n", quccInfo.celsius_4th);
+	if (quccData.ntc_4th) {
+		quccInfo.celsius_4th = ADC_TO_DEG(quccData.ntc_4th);
+	} else {
+		quccInfo.celsius_4th = 0.0;
+	}
 #endif
 #endif
 
-	return QUCC_RX_SUCCESS;
+	#if 0
+	printf("총전압(raw unit: 10mV) : %d\n", quccData.total_voltage_10mv);
+	printf("총전압(V) : %.3lf\n", quccInfo.voltage_v);
+	printf("전류소비량(raw unit: 10mA) : %d\n", quccData.current_10ma);
+	printf("전류소비량(A) : %.3lf\n", quccInfo.current_a);
+	printf("잔여용량(raw unit: 10mAh) : %d\n", quccData.remaining_capacity_10mah);
+	printf("잔여용량(Ah) : %.3lf\n", quccInfo.remaining_capacity_ah);
+	printf("총용량(raw unit: 10mAh) : %d\n", quccData.norminal_capacity_10mah);
+	printf("총용량(Ah) : %.3lf\n", quccInfo.norminal_capacity_ah);
+	printf("사이클 횟수 : %d\n", quccData.number_of_cycles);
+	printf("제조일 : %d\n", quccData.production_date);
+	printf("low balanced : %d\n", quccData.balanced_state);
+	printf("high balanced : %d\n", quccData.balanced_state_high);
+	printf("보호 상태 : %d\n", quccData.protection_status);
+	printf("소프트웨어버전 : %d\n", quccData.software_version);
+	printf("잔여용량(%%) : %d\n", quccData.rsoc);
+	printf("MOS 상태 : %d\n", quccData.fet_control_state);
+	printf("셀 수량 : %d\n", quccData.number_of_battery_strings);
+	printf("온도계 수량 : %d\n", quccData.number_of_ntc);
+	printf("ntc1 : %d\n", quccData.ntc_1st);
+	printf("온도1 : %.3lf\n", quccInfo.celsius_1st);
+	printf("ntc2 : %d\n", quccData.ntc_2nd);
+	printf("온도2 : %.3lf\n", quccInfo.celsius_2nd);
+	printf("ntc3 : %d\n", quccData.ntc_3rd);
+	printf("온도3 : %.3lf\n", quccInfo.celsius_3rd);
+	printf("ntc4 : %d\n", quccData.ntc_4th);
+	printf("온도4 : %.3lf\n", quccInfo.celsius_4th);
+	#endif
+
+	return quccInfo;
 }
 
 int Qucc::isValidChecksum(uint8_t* recv) {
