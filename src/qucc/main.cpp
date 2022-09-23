@@ -83,16 +83,11 @@ int main(int argc, char* argv[])
 
 			batteryState.header.stamp = ros::Time::now();
 			batteryState.voltage = qucc._quccInfo.voltage_v;
-			batteryState.temperature;
 			batteryState.current = qucc._quccInfo.current_a;
-			batteryState.charge;
 			batteryState.capacity = qucc._quccInfo.remaining_capacity_ah;
 			batteryState.design_capacity = qucc._quccInfo.norminal_capacity_ah;
 			batteryState.percentage = qucc._quccInfo.remaining_capacity_percent / 100.0;
-			batteryState.power_supply_status;
-			batteryState.power_supply_health;
 			batteryState.power_supply_technology = batteryState.POWER_SUPPLY_TECHNOLOGY_LIFE;
-			batteryState.present;
 			battery_pub.publish(batteryState);
 
 			#if 1
