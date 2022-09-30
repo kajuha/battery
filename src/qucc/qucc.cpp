@@ -271,7 +271,7 @@ QuccInfo Qucc::parseRxData(QuccData quccData) {
 	#define IS_DISCHARGE(x) ((x>>MSB_DISCHARGE) & 0x0001)
 	#define CALC_CURRENT_A(x) ((65536.0-(double)x)/100.0)
 	if (quccData.current_10ma) {
-		quccInfo.current_a = IS_DISCHARGE(quccData.current_10ma)?CALC_CURRENT_A(quccData.current_10ma)*-1.0:CALC_CURRENT_A(quccData.current_10ma);
+		quccInfo.current_a = IS_DISCHARGE(quccData.current_10ma)?CALC_CURRENT_A(quccData.current_10ma)*-1.0:(quccData.current_10ma*10.0)/1000.0;
 	} else {
 		quccInfo.current_a = 0.0;
 	}
@@ -301,7 +301,12 @@ QuccInfo Qucc::parseRxData(QuccData quccData) {
 	// 잔여용량(%)
 	quccInfo.remaining_capacity_percent = quccData.rsoc;
 	// MOS 상태
-	quccInfo.fet_control_state = quccData.fet_control_state;
+	#define BIT_CHARGING 0
+	#define BIT_DISCHARGING 1
+	#define IS_CHARGING(x) ((x>>BIT_CHARGING) & 0x01)
+	#define IS_DISCHARGING(x) ((x>>BIT_DISCHARGING) & 0x01)
+	quccInfo.charging = IS_CHARGING(quccData.fet_control_state);
+	quccInfo.discharging = IS_DISCHARGING(quccData.fet_control_state);
 	// 셀 수량
 	quccInfo.number_of_battery_strings = quccData.number_of_battery_strings;
 	// 온도계 수량
@@ -345,8 +350,8 @@ QuccInfo Qucc::parseRxData(QuccData quccData) {
 	#if 0
 	printf("총전압(raw unit: 10mV) : %d\n", quccData.total_voltage_10mv);
 	printf("총전압(V) : %.3lf\n", quccInfo.voltage_v);
-	printf("전류소비량(raw unit: 10mA) : %d\n", quccData.current_10ma);
-	printf("전류소비량(A) : %.3lf\n", quccInfo.current_a);
+	printf("전류(raw unit: 10mA) : %d\n", quccData.current_10ma);
+	printf("전류(A) : %.3lf\n", quccInfo.current_a);
 	printf("잔여용량(raw unit: 10mAh) : %d\n", quccData.remaining_capacity_10mah);
 	printf("잔여용량(Ah) : %.3lf\n", quccInfo.remaining_capacity_ah);
 	printf("총용량(raw unit: 10mAh) : %d\n", quccData.norminal_capacity_10mah);
@@ -359,6 +364,7 @@ QuccInfo Qucc::parseRxData(QuccData quccData) {
 	printf("소프트웨어버전 : %d\n", quccData.software_version);
 	printf("잔여용량(%%) : %d\n", quccData.rsoc);
 	printf("MOS 상태 : %d\n", quccData.fet_control_state);
+	printf("충전 : %d, 방전 : %d\n", quccInfo.charging, quccInfo.discharging);
 	printf("셀 수량 : %d\n", quccData.number_of_battery_strings);
 	printf("온도계 수량 : %d\n", quccData.number_of_ntc);
 	printf("ntc1 : %d\n", quccData.ntc_1st);

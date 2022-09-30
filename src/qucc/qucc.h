@@ -118,7 +118,8 @@ typedef struct _QuccInfo {
 	uint16_t protection_status;
 	uint8_t software_version;
 	double remaining_capacity_percent;
-	uint8_t fet_control_state;
+	uint8_t charging;
+	uint8_t discharging;
 	uint8_t number_of_battery_strings;
 	uint8_t number_of_ntc;
 	double celsius_1st;

@@ -58,17 +58,11 @@ int main(int argc, char* argv[])
 
     char real_name[NAME_MAX] = {'\0', };
 
-    // readlink(serial_port.c_str(), real_name, sizeof(real_name));
 	realpath(serial_port.c_str(), real_name);
 
-	if (!strcmp(serial_port.c_str(), real_name)) {
-		printf("failed to get realpath\n");
-
-		return -1;
-	}
-	ctx = modbus_new_rtu(real_name, baud_rate, 'N', 8, 1);
-
 	printf("%s->%s %d %d\n", serial_port.c_str(), real_name, baud_rate, slave_num);
+
+	ctx = modbus_new_rtu(real_name, baud_rate, 'N', 8, 1);
 
 	// modbus_new_rtu return
 	// pointer : successful
