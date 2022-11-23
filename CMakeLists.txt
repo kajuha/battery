@@ -61,6 +61,9 @@ catkin_package(
 ################################################################################
 # Build
 ################################################################################
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(LIBMODBUS libmodbus REQUIRED)
+
 if(${BMS} EQUAL ${BMS_QUCC})
   include_directories(  
     ${catkin_INCLUDE_DIRS}
@@ -72,11 +75,11 @@ if(${BMS} EQUAL ${BMS_QUCC})
 elseif(${BMS} EQUAL ${BMS_POWERCRAFT})
   include_directories(  
     ${catkin_INCLUDE_DIRS}
-    /usr/include/modbus
+    ${LIBMODBUS_INCLUDE_DIRS}
   )
 
   add_executable(battery src/powercraft/powercraft.cpp)
-  target_link_libraries(battery ${catkin_LIBRARIES} modbus)
+  target_link_libraries(battery ${catkin_LIBRARIES} ${LIBMODBUS_LIBRARIES})
   add_dependencies(battery ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 else()
 endif()
