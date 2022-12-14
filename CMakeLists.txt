@@ -84,6 +84,10 @@ elseif(${BMS} EQUAL ${BMS_POWERCRAFT})
 else()
 endif()
 
+add_executable(dummy_battery src/dummy/dummy.cpp)
+target_link_libraries(dummy_battery ${catkin_LIBRARIES} ${LIBMODBUS_LIBRARIES})
+add_dependencies(dummy_battery ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+
 # I knew the REP0003(http://www.ros.org/reps/rep-0003.html#c),
 # but the code of "battery" must compile with C++11.
 set(CMAKE_CXX_FLAGS "-std=c++11 ${CMAKE_CXX_FLAGS}")
