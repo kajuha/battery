@@ -63,12 +63,24 @@
 
 #define QUCC_RX_LENGTH_IDX (QUCC_RX_STATUS_IDX+QUCC_RX_STATUS_LEN)
 #define QUCC_RX_LENGTH_LEN 1
+#if 0
 #define QUCC_RX_LENGTH_VAL 0x1B
+#else
+static uint8_t QUCC_RX_LENGTH_VAL;
+#endif
 
 #define QUCC_RX_DATA_IDX (QUCC_RX_LENGTH_IDX+QUCC_RX_LENGTH_LEN)
+#if 0
 #define QUCC_RX_DATA_LEN QUCC_RX_LENGTH_VAL
+#else
+static uint8_t QUCC_RX_DATA_LEN;
+#endif
 
+#if 0
 #define QUCC_RX_CHECKSUM_IDX (QUCC_RX_DATA_IDX+QUCC_RX_DATA_LEN)
+#else
+static uint8_t QUCC_RX_CHECKSUM_IDX;
+#endif
 #define QUCC_RX_CHECKSUM_LEN 2
 #define QUCC_RX_CHECKSUM_VAL 0
 
@@ -79,7 +91,11 @@
 #define QUCC_RX_LEN (QUCC_RX_END_IDX+QUCC_RX_END_LEN)
 
 #define QUCC_RX_CHECKSUM_START_IDX (QUCC_RX_STATUS_IDX)
+#if 0
 #define QUCC_RX_CHECKSUM_BYTE_LEN (QUCC_RX_STATUS_LEN+QUCC_RX_LENGTH_LEN+QUCC_RX_DATA_LEN)
+#else
+static uint8_t QUCC_RX_CHECKSUM_BYTE_LEN;
+#endif
 
 enum FSM_QUCC_RX {
     START, COMMAND, STATUS, LENGTH, DATA, CHECKSUM, END, OK
@@ -100,10 +116,12 @@ typedef struct _QuccData {
 	uint8_t fet_control_state;
 	uint8_t number_of_battery_strings;
 	uint8_t number_of_ntc;
+	#if 0
 	uint16_t ntc_1st;
 	uint16_t ntc_2nd;
 	uint16_t ntc_3rd;
 	uint16_t ntc_4th;
+	#endif
 } QuccData;
 
 typedef struct _QuccInfo {
@@ -122,10 +140,12 @@ typedef struct _QuccInfo {
 	uint8_t discharging;
 	uint8_t number_of_battery_strings;
 	uint8_t number_of_ntc;
+	#if 0
 	double celsius_1st;
 	double celsius_2nd;
 	double celsius_3rd;
 	double celsius_4th;
+	#endif
 } QuccInfo;
 
 class Qucc {

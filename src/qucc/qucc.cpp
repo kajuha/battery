@@ -189,12 +189,20 @@ bool Qucc::parseQuccState() {
 		case FSM_QUCC_RX::LENGTH:
 			if (queSerialRx.size() >= QUCC_RX_LENGTH_LEN) {
 				recv[QUCC_RX_LENGTH_IDX] = queSerialRx.front();
+				#if 0
 				if (recv[QUCC_RX_LENGTH_IDX] == QUCC_RX_LENGTH_VAL) {
 					state = FSM_QUCC_RX::DATA;
 				} else {
 					printf("FSM_QUCC_RX::LENGTH not Match \n");
 					state = FSM_QUCC_RX::LENGTH;
 				}
+				#else
+				QUCC_RX_LENGTH_VAL = recv[QUCC_RX_LENGTH_IDX];
+				QUCC_RX_DATA_LEN = QUCC_RX_LENGTH_VAL;
+				QUCC_RX_CHECKSUM_IDX = (QUCC_RX_DATA_IDX+QUCC_RX_DATA_LEN);
+				QUCC_RX_CHECKSUM_BYTE_LEN = (QUCC_RX_STATUS_LEN+QUCC_RX_LENGTH_LEN+QUCC_RX_DATA_LEN);
+				state = FSM_QUCC_RX::DATA;
+				#endif
 				queSerialRx.pop();
 			}
 			break;
@@ -237,7 +245,11 @@ bool Qucc::parseQuccState() {
 		case FSM_QUCC_RX::OK:
 			if (isValidChecksum(recv)) {
 				if (recv[QUCC_RX_STATUS_IDX] == 0x00) {
+					#if 0
 					memcpy((uint8_t*)(&_quccData), recv+QUCC_RX_DATA_IDX, recv[QUCC_RX_LENGTH_IDX]);
+					#else
+					memcpy((uint8_t*)(&_quccData), recv+QUCC_RX_DATA_IDX, sizeof(_quccData));
+					#endif
 					_quccInfo = parseRxData(_quccData);
 				} else {
 					printf("QUCC_RX_STATUS_VAL is not ZERO : 0x%x\n", recv[QUCC_RX_STATUS_IDX]);
