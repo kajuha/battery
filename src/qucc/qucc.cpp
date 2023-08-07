@@ -29,72 +29,6 @@ Qucc::Qucc(std::string serialPort, int baudrate) {
 bool Qucc::initSerial()	{
 	const char* COMM_PORT = serialPort.c_str();
 
-	#if 0
-	if(-1 == (fd = open(COMM_PORT, O_RDWR))) {
-		printf("error opening port\n");
-		printf("set port parameters using the following Linux command:\n");
-		printf("stty -F %s %d raw\n", COMM_PORT, baudrate);
-		printf("you may need to have ROOT access\n");
-		return false;
-	}
-
-	struct termios newtio;
-	memset(&newtio, 0, sizeof(newtio));
-	
-	switch(baudrate) {
-		case 921600:
-			newtio.c_cflag = B921600;
-			break;
-		case 576000:
-			newtio.c_cflag = B576000;
-			break;
-		case 500000:
-			newtio.c_cflag = B500000;
-			break;
-		case 460800:
-			newtio.c_cflag = B460800;
-			break;
-		case 230400:
-			newtio.c_cflag = B230400;
-			break;
-		case 115200:
-			newtio.c_cflag = B115200;
-			break;
-		case 57600:
-			newtio.c_cflag = B57600;
-			break;
-		case 38400:
-			newtio.c_cflag = B38400;
-			break;
-		case 19200:
-			newtio.c_cflag = B19200;
-			break;
-		case 9600:
-			newtio.c_cflag = B9600;
-			break;
-		case 4800:
-			newtio.c_cflag = B4800;
-			break;
-		default:
-			printf("unsupported baudrate!");
-			exit(0);
-	}
-	newtio.c_cflag |= CS8;
-	newtio.c_cflag |= CLOCAL;
-	newtio.c_cflag |= CREAD;
-	newtio.c_iflag = 0;
-	newtio.c_oflag = 0;
-	newtio.c_lflag = 0;
-	newtio.c_cc[VTIME] = 0;
-	#if 0
-	newtio.c_cc[VMIN] = 1; 
-	#else
-	newtio.c_cc[VMIN] = 0;
-	#endif
-
-	tcflush(fd, TCIOFLUSH);
-	tcsetattr(fd, TCSANOW, &newtio);
-	#else
 	ser->setPort(serialPort);
 	ser->setBaudrate(baudrate);
 	#define SERIAL_TIMEOUT_MS 3000
@@ -110,7 +44,6 @@ bool Qucc::initSerial()	{
 	}
 
 	ser->flush();
-	#endif
 
 	printf("qucc communication port is ready\n");
 
@@ -118,11 +51,8 @@ bool Qucc::initSerial()	{
 }
 
 void Qucc::closeSerial() {
-	#if 0
-	close(fd);
-	#else
 	ser->close();
-	#endif
+	
 	printf("closing qucc\n");
 }
 
@@ -136,11 +66,7 @@ bool Qucc::sendQuccCmd() {
 	*(uint16_t*)(serialBufferTx+QUCC_TX_CHECKSUM_IDX) = QUCC_TX_CHECKSUM_VAL;
 	serialBufferTx[QUCC_TX_END_IDX] = QUCC_TX_END_VAL;
 
-	#if 0
-	write(fd, serialBufferTx, QUCC_TX_LEN);
-	#else
 	ser->write(serialBufferTx, QUCC_TX_LEN);
-	#endif
 
 	return true;
 }
@@ -150,11 +76,7 @@ bool Qucc::receiveQuccState(bool enableParsing) {
 
 	memset(serialBufferRx, '\0', sizeof(serialBufferRx));
 
-	#if 0
-	rx_size = read(fd, serialBufferRx, BUFSIZ);
-	#else
 	rx_size = ser->read(serialBufferRx, ser->available());
-	#endif
 
 	for (int i=0; i<rx_size; i++) {
 		queSerialRx.push(serialBufferRx[i]);

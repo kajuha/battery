@@ -156,11 +156,7 @@ public:
 	int baudrate;
 	std::queue<uint8_t> queSerialRx;
 
-	#if 0
-	int fd;
-	#else
 	serial::Serial *ser;
-	#endif
 	uint8_t serialBufferRx[BUFSIZ];
 	uint8_t serialBufferTx[BUFSIZ];
 
