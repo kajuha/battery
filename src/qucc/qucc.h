@@ -3,6 +3,8 @@
 #include <string>
 #include <queue>
 
+#include <serial/serial.h>
+
 #define SWAP_BYTE 1
 #define SHIFT_BIT (SWAP_BYTE*8)
 
@@ -154,7 +156,11 @@ public:
 	int baudrate;
 	std::queue<uint8_t> queSerialRx;
 
+	#if 0
 	int fd;
+	#else
+	serial::Serial *ser;
+	#endif
 	uint8_t serialBufferRx[BUFSIZ];
 	uint8_t serialBufferTx[BUFSIZ];
 

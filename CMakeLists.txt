@@ -38,7 +38,7 @@ find_package(catkin REQUIRED COMPONENTS
   roscpp
   std_msgs
   sensor_msgs
-  tf
+  serial
 )
 
 ################################################################################
@@ -54,7 +54,7 @@ find_package(catkin REQUIRED COMPONENTS
 ################################################################################
 catkin_package(  
   LIBRARIES battery
-  CATKIN_DEPENDS roscpp std_msgs sensor_msgs tf
+  CATKIN_DEPENDS roscpp std_msgs sensor_msgs
 #   DEPENDS system_lib
 )
 

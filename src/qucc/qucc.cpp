@@ -23,11 +23,13 @@ Qucc::Qucc(std::string serialPort, int baudrate) {
 	this->serialPort = serialPort;
 	this->baudrate = baudrate;
 	this->isParsed = false;
+	this->ser = new serial::Serial();
 }
 
 bool Qucc::initSerial()	{
 	const char* COMM_PORT = serialPort.c_str();
 
+	#if 0
 	if(-1 == (fd = open(COMM_PORT, O_RDWR))) {
 		printf("error opening port\n");
 		printf("set port parameters using the following Linux command:\n");
@@ -92,6 +94,23 @@ bool Qucc::initSerial()	{
 
 	tcflush(fd, TCIOFLUSH);
 	tcsetattr(fd, TCSANOW, &newtio);
+	#else
+	ser->setPort(serialPort);
+	ser->setBaudrate(baudrate);
+	#define SERIAL_TIMEOUT_MS 3000
+	serial::Timeout to = serial::Timeout::simpleTimeout(SERIAL_TIMEOUT_MS);
+	ser->setTimeout(to);
+
+	ser->open();
+
+	if (!ser->isOpen()) {
+		printf("error opening port[%s] baudrate[%d]\n", COMM_PORT, baudrate);
+		printf("you may need to have ROOT access\n");
+		return false;
+	}
+
+	ser->flush();
+	#endif
 
 	printf("qucc communication port is ready\n");
 
@@ -99,7 +118,11 @@ bool Qucc::initSerial()	{
 }
 
 void Qucc::closeSerial() {
+	#if 0
 	close(fd);
+	#else
+	ser->close();
+	#endif
 	printf("closing qucc\n");
 }
 
@@ -113,7 +136,11 @@ bool Qucc::sendQuccCmd() {
 	*(uint16_t*)(serialBufferTx+QUCC_TX_CHECKSUM_IDX) = QUCC_TX_CHECKSUM_VAL;
 	serialBufferTx[QUCC_TX_END_IDX] = QUCC_TX_END_VAL;
 
+	#if 0
 	write(fd, serialBufferTx, QUCC_TX_LEN);
+	#else
+	ser->write(serialBufferTx, QUCC_TX_LEN);
+	#endif
 
 	return true;
 }
@@ -123,7 +150,11 @@ bool Qucc::receiveQuccState(bool enableParsing) {
 
 	memset(serialBufferRx, '\0', sizeof(serialBufferRx));
 
+	#if 0
 	rx_size = read(fd, serialBufferRx, BUFSIZ);
+	#else
+	rx_size = ser->read(serialBufferRx, ser->available());
+	#endif
 
 	for (int i=0; i<rx_size; i++) {
 		queSerialRx.push(serialBufferRx[i]);
