@@ -72,11 +72,14 @@ bool Qucc::sendQuccCmd() {
 }
 
 bool Qucc::receiveQuccState(bool enableParsing) {
-	int rx_size;
+	static int rx_size;
 
 	memset(serialBufferRx, '\0', sizeof(serialBufferRx));
 
-	rx_size = ser->read(serialBufferRx, ser->available());
+	rx_size = ser->available();
+	if (rx_size) {
+		rx_size = ser->read(serialBufferRx, rx_size);
+	}
 
 	for (int i=0; i<rx_size; i++) {
 		queSerialRx.push(serialBufferRx[i]);
