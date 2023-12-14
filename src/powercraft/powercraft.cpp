@@ -117,7 +117,11 @@ int main(int argc, char* argv[])
 		if (modbus_read_input_registers(ctx, 0, INPUT_REGISTER_SIZE, input_register)) {
 			batteryState.header.stamp = ros::Time::now();
 			batteryState.voltage = input_register[INPUT_REGISTER_VOLTAGE_IDX]*0.05;
-			batteryState.current = (input_register[INPUT_REGISTER_CURRENT_IDX]-511)*0.25;
+			if ((int32_t)batteryState.voltage == 0) {
+				batteryState.current = 0.0;
+			} else {
+				batteryState.current = (input_register[INPUT_REGISTER_CURRENT_IDX]-511)*0.25;
+			}
 			// input_register[INPUT_REGISTER_TEMPERATURE_IDX];
 			// input_register[INPUT_REGISTER_INC_COUNTER_IDX];
 			battery_pub.publish(batteryState);
