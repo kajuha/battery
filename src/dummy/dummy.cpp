@@ -13,9 +13,18 @@ int main(int argc, char* argv[])
 	ros::NodeHandle nh("~");
 	
 	std::string bms_model;
+	double DEFAULT_VOLTAGE;
+	double DEFAULT_CURRENT;
+	double DEFAULT_PERCENTAGE;
 
 	// ros::param::get("~bms_model", bms_model);
+	// ros::param::get("~DEFAULT_VOLTAGE", DEFAULT_VOLTAGE);
+	// ros::param::get("~DEFAULT_CURRENT", DEFAULT_CURRENT);
+	// ros::param::get("~DEFAULT_PERCENTAGE", DEFAULT_PERCENTAGE);
 	nh.getParam("bms_model", bms_model);
+	nh.getParam("DEFAULT_VOLTAGE", DEFAULT_VOLTAGE);
+	nh.getParam("DEFAULT_CURRENT", DEFAULT_CURRENT);
+	nh.getParam("DEFAULT_PERCENTAGE", DEFAULT_PERCENTAGE);
 	
 	printf("FILE NAME : %s\n", __FILENAME__);
 	printf("BMS MODEL : %s\n", bms_model.c_str());
@@ -38,9 +47,6 @@ int main(int argc, char* argv[])
 	while (ros::ok())
 	{
 		batteryState.header.stamp = ros::Time::now();
-#define DEFAULT_VOLTAGE 24.0
-#define DEFAULT_CURRENT 2.0
-#define DEFAULT_PERCENTAGE 80.0
 		batteryState.voltage = DEFAULT_VOLTAGE + dis(gen)/100.0;
 		batteryState.current = DEFAULT_CURRENT + dis(gen)/100.0;
 		batteryState.capacity = 0.0;

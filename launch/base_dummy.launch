@@ -1,9 +1,15 @@
 <launch>
   <arg name="message_display" default="screen" doc="output type"/>
   <arg name="bms_model" default="dummy"  doc="bms_model"/>
+  <arg name="DEFAULT_VOLTAGE" default="24.0"  doc="DEFAULT_VOLTAGE"/>
+  <arg name="DEFAULT_CURRENT" default="2.0"  doc="DEFAULT_CURRENT"/>
+  <arg name="DEFAULT_PERCENTAGE" default="80.0"  doc="DEFAULT_PERCENTAGE"/>
 
   <node pkg="battery" type="dummy_battery" name="battery" output="$(arg message_display)">
     <param name="message_display" value="$(arg message_display)"/>
     <param name="bms_model" value="$(arg bms_model)"/>
+    <param name="DEFAULT_VOLTAGE" value="$(arg DEFAULT_VOLTAGE)"/>
+    <param name="DEFAULT_CURRENT" value="$(arg DEFAULT_CURRENT)"/>
+    <param name="DEFAULT_PERCENTAGE" value="$(arg DEFAULT_PERCENTAGE)"/>
   </node>
 </launch>
