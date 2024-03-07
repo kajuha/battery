@@ -23,27 +23,52 @@ Qucc::Qucc(std::string serialPort, int baudrate) {
 	this->serialPort = serialPort;
 	this->baudrate = baudrate;
 	this->isParsed = false;
-	this->ser = new serial::Serial();
+	// this->ser = new serial::Serial();
+	this->ser = new LibSerial::SerialPort();
 }
 
 bool Qucc::initSerial()	{
 	const char* COMM_PORT = serialPort.c_str();
 
-	ser->setPort(serialPort);
-	ser->setBaudrate(baudrate);
+	// ser->setPort(serialPort);
+	ser->Open(serialPort);
+	// ser->setBaudrate(baudrate);
+	switch (baudrate) {
+		case 9600:
+			ser->SetBaudRate(LibSerial::BaudRate::BAUD_9600);
+			break;
+		case 19200:
+			ser->SetBaudRate(LibSerial::BaudRate::BAUD_19200);
+			break;
+		case 115200:
+			ser->SetBaudRate(LibSerial::BaudRate::BAUD_115200);
+			break;
+		default:
+			printf("F:%s, L:%d, unknown case(%dd)\n", __FUNCTION__, __LINE__, baudrate);
+			exit(-1);
+	}
+	// #define SERIAL_TIMEOUT_MS 3000
+	// serial::Timeout to = serial::Timeout::simpleTimeout(SERIAL_TIMEOUT_MS);
+	// ser->setTimeout(to);
 	#define SERIAL_TIMEOUT_MS 3000
-	serial::Timeout to = serial::Timeout::simpleTimeout(SERIAL_TIMEOUT_MS);
-	ser->setTimeout(to);
+	#define MS_TO_DECISEC(x) (x/100)
+	ser->SetVTime(MS_TO_DECISEC(SERIAL_TIMEOUT_MS));
 
-	ser->open();
+	// ser->open();
 
-	if (!ser->isOpen()) {
+	// if (!ser->isOpen()) {
+	// 	printf("error opening port[%s] baudrate[%d]\n", COMM_PORT, baudrate);
+	// 	printf("you may need to have ROOT access\n");
+	// 	return false;
+	// }
+	if (!ser->IsOpen()) {
 		printf("error opening port[%s] baudrate[%d]\n", COMM_PORT, baudrate);
 		printf("you may need to have ROOT access\n");
 		return false;
 	}
 
-	ser->flush();
+	// ser->flush();
+	ser->FlushIOBuffers();
 
 	printf("qucc communication port is ready\n");
 
@@ -51,7 +76,8 @@ bool Qucc::initSerial()	{
 }
 
 void Qucc::closeSerial() {
-	ser->close();
+	// ser->close();
+	ser->Close();
 	
 	printf("closing qucc\n");
 }
@@ -66,7 +92,9 @@ bool Qucc::sendQuccCmd() {
 	*(uint16_t*)(serialBufferTx+QUCC_TX_CHECKSUM_IDX) = QUCC_TX_CHECKSUM_VAL;
 	serialBufferTx[QUCC_TX_END_IDX] = QUCC_TX_END_VAL;
 
-	ser->write(serialBufferTx, QUCC_TX_LEN);
+	// ser->write(serialBufferTx, QUCC_TX_LEN);
+	LibSerial::DataBuffer TxBuffer = LibSerial::DataBuffer(serialBufferTx, serialBufferTx + QUCC_TX_LEN);
+	ser->Write(TxBuffer);
 
 	return true;
 }
@@ -76,9 +104,14 @@ bool Qucc::receiveQuccState(bool enableParsing) {
 
 	memset(serialBufferRx, '\0', sizeof(serialBufferRx));
 
-	rx_size = ser->available();
+	// rx_size = ser->available();
+	rx_size = ser->GetNumberOfBytesAvailable();
+	// if (rx_size) {
+	// 	rx_size = ser->read(serialBufferRx, rx_size);
+	// }
 	if (rx_size) {
-		rx_size = ser->read(serialBufferRx, rx_size);
+		ser->Read(rx_string, rx_size, SERIAL_TIMEOUT_MS);
+		memcpy(serialBufferRx, rx_string.c_str(), rx_size);
 	}
 
 	for (int i=0; i<rx_size; i++) {

@@ -1,0 +1,13 @@
+<launch>
+  <arg name="message_display" default="screen" description="message_display"/>
+  <arg name="serial_port" default="/dev/recipe.driver.battery" description="serial_port"/>
+  <arg name="baud_rate" default="9600" description="baud_rate"/>
+  <arg name="bms_model" default="qucc" description="bms_model"/>
+
+  <include file="$(find-pkg-share battery)/launch/base.launch.xml">
+    <arg name="message_display" value="$(var message_display)"/>
+    <arg name="serial_port" value="$(var serial_port)"/>
+    <arg name="baud_rate" value="$(var baud_rate)"/>
+    <arg name="bms_model" value="$(var bms_model)"/>
+  </include>
+</launch>

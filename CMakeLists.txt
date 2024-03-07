@@ -1,119 +1,52 @@
-################################################################################
-# CMake
-################################################################################
-cmake_minimum_required(VERSION 2.8.3)
+cmake_minimum_required(VERSION 3.5)
 project(battery)
 
-set(BMS_QUCC 1)
-set(BMS_POWERCRAFT 2)
-
-# 명령줄에서 변수를 전달해서 빌드할 경우($ catkin build battery --cmake-args -DBMS=3)
-if(${BMS})
-  message("COMMANDLINE BMS")
-# 명령줄에서 변수를 전달하지 않고 재컴파일할 경우($ catkin build battery) 이전값이 전달되므로
-# 반드시 catkin clean battery를 한 뒤에 빌드할 것
-else()
-  message("NO commandline BMS")
-  set(BMS ${BMS_QUCC})
-  # set(BMS ${BMS_POWERCRAFT})
+# Default to C99
+if(NOT CMAKE_C_STANDARD)
+  set(CMAKE_C_STANDARD 99)
 endif()
 
-if(${BMS})
-  add_definitions(-DBMS=${BMS})
-else()
-  add_definitions(-DNOBMS)
+# Default to C++14
+if(NOT CMAKE_CXX_STANDARD)
+  set(CMAKE_CXX_STANDARD 14)
 endif()
 
-if(${BMS} EQUAL ${BMS_QUCC})
-  message("BMS_QUCC BUILD")
-elseif(${BMS} EQUAL ${BMS_POWERCRAFT})
-  message("BMS_POWERCRAFT BUILD")
-else()
-  message(FATAL_ERROR "UNKNOWN_BMS BUILD")
+if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+  add_compile_options(-Wall -Wextra -Wpedantic)
 endif()
-################################################################################
-# Packages
-################################################################################
-find_package(catkin REQUIRED COMPONENTS
-  roscpp
-  std_msgs
-  sensor_msgs
-  serial
-)
 
-################################################################################
-# Declare ROS messages, services and actions
-################################################################################
-
-################################################################################
-# Declare ROS dynamic reconfigure parameters
-################################################################################
-
-################################################################################
-# Catkin specific configuration
-################################################################################
-catkin_package(  
-  LIBRARIES battery
-  CATKIN_DEPENDS roscpp std_msgs sensor_msgs
-#   DEPENDS system_lib
-)
-
-################################################################################
-# Build
-################################################################################
+# find dependencies
+find_package(ament_cmake REQUIRED)
+# uncomment the following section in order to fill in
+# further dependencies manually.
+# find_package(<dependency> REQUIRED)
+find_package(rclcpp REQUIRED)
+find_package(std_msgs REQUIRED)
+find_package(sensor_msgs REQUIRED)
 find_package(PkgConfig REQUIRED)
-pkg_check_modules(LIBMODBUS libmodbus REQUIRED)
+pkg_check_modules(LIBSERIAL libserial)
 
-if(${BMS} EQUAL ${BMS_QUCC})
-  include_directories(  
-    ${catkin_INCLUDE_DIRS}
-  )
+add_executable(battery src/qucc/main.cpp src/qucc/qucc.cpp)
+ament_target_dependencies(battery rclcpp std_msgs sensor_msgs LIBSERIAL)
+target_include_directories(battery PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:include>)
 
-  add_executable(battery src/qucc/main.cpp src/qucc/qucc.cpp)
-  target_link_libraries(battery ${catkin_LIBRARIES})
-  add_dependencies(battery ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
-elseif(${BMS} EQUAL ${BMS_POWERCRAFT})
-  include_directories(  
-    ${catkin_INCLUDE_DIRS}
-    ${LIBMODBUS_INCLUDE_DIRS}
-  )
-
-  add_executable(battery src/powercraft/powercraft.cpp)
-  target_link_libraries(battery ${catkin_LIBRARIES} ${LIBMODBUS_LIBRARIES})
-  add_dependencies(battery ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
-else()
-endif()
-
-add_executable(dummy_battery src/dummy/dummy.cpp)
-target_link_libraries(dummy_battery ${catkin_LIBRARIES} ${LIBMODBUS_LIBRARIES})
-add_dependencies(dummy_battery ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
-
-# I knew the REP0003(http://www.ros.org/reps/rep-0003.html#c),
-# but the code of "battery" must compile with C++11.
-set(CMAKE_CXX_FLAGS "-std=c++11 ${CMAKE_CXX_FLAGS}")
-
-
-################################################################################
-# Install
-################################################################################
 install(TARGETS battery
-        ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-        LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-        RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
-)
-
-install(DIRECTORY include/${PROJECT_NAME}/
-        DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
-)
+  DESTINATION lib/${PROJECT_NAME})
 
 install(DIRECTORY launch
-        DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
-)
+  DESTINATION share/${PROJECT_NAME})
 
-install(DIRECTORY rviz_cfg
-        DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
-)
+if(BUILD_TESTING)
+  find_package(ament_lint_auto REQUIRED)
+  # the following line skips the linter which checks for copyrights
+  # uncomment the line when a copyright and license is not present in all source files
+  #set(ament_cmake_copyright_FOUND TRUE)
+  # the following line skips cpplint (only works in a git repo)
+  # uncomment the line when this package is not in a git repo
+  #set(ament_cmake_cpplint_FOUND TRUE)
+  ament_lint_auto_find_test_dependencies()
+endif()
 
-################################################################################
-# Test
-#############################################################################
+ament_package()
