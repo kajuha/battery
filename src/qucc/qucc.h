@@ -1,5 +1,7 @@
 #pragma once
 
+#include <rclcpp/rclcpp.hpp>
+
 #include <string>
 #include <queue>
 
@@ -153,6 +155,8 @@ typedef struct _QuccInfo {
 
 class Qucc {
 public:
+	rclcpp::Node::SharedPtr node;
+
 	std::string serialPort;
 	int baudrate;
 	std::queue<uint8_t> queSerialRx;
@@ -169,7 +173,7 @@ public:
 	bool isParsed;
 	
 	Qucc();
-	Qucc(std::string serialPort, int baudrate);
+	Qucc(rclcpp::Node::SharedPtr node, std::string serialPort, int baudrate);
 
 	bool initSerial();
 	void closeSerial();

@@ -19,7 +19,8 @@
 Qucc::Qucc() {
 }
 
-Qucc::Qucc(std::string serialPort, int baudrate) {
+Qucc::Qucc(rclcpp::Node::SharedPtr node, std::string serialPort, int baudrate) {
+	this->node = node;
 	this->serialPort = serialPort;
 	this->baudrate = baudrate;
 	this->isParsed = false;
@@ -44,7 +45,7 @@ bool Qucc::initSerial()	{
 			ser->SetBaudRate(LibSerial::BaudRate::BAUD_115200);
 			break;
 		default:
-			printf("F:%s, L:%d, unknown case(%dd)\n", __FUNCTION__, __LINE__, baudrate);
+			RCLCPP_INFO(node->get_logger(), "F:%s, L:%d, unknown case(%dd)", __FUNCTION__, __LINE__, baudrate);
 			exit(-1);
 	}
 	// #define SERIAL_TIMEOUT_MS 3000
@@ -57,20 +58,20 @@ bool Qucc::initSerial()	{
 	// ser->open();
 
 	// if (!ser->isOpen()) {
-	// 	printf("error opening port[%s] baudrate[%d]\n", COMM_PORT, baudrate);
-	// 	printf("you may need to have ROOT access\n");
+	// 	RCLCPP_INFO(node->get_logger(), "error opening port[%s] baudrate[%d]", COMM_PORT, baudrate);
+	// 	RCLCPP_INFO(node->get_logger(), "you may need to have ROOT access");
 	// 	return false;
 	// }
 	if (!ser->IsOpen()) {
-		printf("error opening port[%s] baudrate[%d]\n", COMM_PORT, baudrate);
-		printf("you may need to have ROOT access\n");
+		RCLCPP_INFO(node->get_logger(), "error opening port[%s] baudrate[%d]", COMM_PORT, baudrate);
+		RCLCPP_INFO(node->get_logger(), "you may need to have ROOT access");
 		return false;
 	}
 
 	// ser->flush();
 	ser->FlushIOBuffers();
 
-	printf("qucc communication port is ready\n");
+	RCLCPP_INFO(node->get_logger(), "qucc communication port is ready");
 
 	return true;
 }
@@ -79,7 +80,7 @@ void Qucc::closeSerial() {
 	// ser->close();
 	ser->Close();
 	
-	printf("closing qucc\n");
+	RCLCPP_INFO(node->get_logger(), "closing qucc");
 }
 
 bool Qucc::sendQuccCmd() {
@@ -122,11 +123,25 @@ bool Qucc::receiveQuccState(bool enableParsing) {
 		parseQuccState();
 	} else {
 		if (queSerialRx.size()) {
+			#if 0
+			RCLCPP_INFO(node->get_logger(), "RxBuffer:");
 			for (int i=0; i<rx_size; i++) {
-				printf("[%02x]", queSerialRx.front());
+				RCLCPP_INFO(node->get_logger(), "[%02x]", queSerialRx.front());
 				queSerialRx.pop();
 			}
-			printf("\n");
+			RCLCPP_INFO(node->get_logger(), "");
+			#else
+			static std::string tmpBufString;
+			static char tmpBuffer[BUFSIZ];
+			sprintf(tmpBuffer, "RxBuffer:");
+			tmpBufString = tmpBuffer;
+			for (int i=0; i<rx_size; i++) {
+				sprintf(tmpBuffer, "[%02x]", queSerialRx.front());
+				tmpBufString += tmpBuffer;
+				queSerialRx.pop();
+			}
+			RCLCPP_INFO(node->get_logger(), "%s", tmpBufString.c_str());
+			#endif
 		}
 	}
 
@@ -145,7 +160,7 @@ bool Qucc::parseQuccState() {
 				if (recv[QUCC_RX_START_IDX] == QUCC_RX_START_VAL) {
 					state = FSM_QUCC_RX::COMMAND;
 				} else {
-					printf("FSM_QUCC_RX::START not Match \n");
+					RCLCPP_INFO(node->get_logger(), "FSM_QUCC_RX::START not Match");
 					state = FSM_QUCC_RX::START;
 				}
 				queSerialRx.pop();
@@ -157,7 +172,7 @@ bool Qucc::parseQuccState() {
 				if (recv[QUCC_RX_COMMAND_IDX] == QUCC_RX_COMMAND_VAL) {
 					state = FSM_QUCC_RX::STATUS;
 				} else {
-					printf("FSM_QUCC_RX::COMMAND not Match \n");
+					RCLCPP_INFO(node->get_logger(), "FSM_QUCC_RX::COMMAND not Match");
 					state = FSM_QUCC_RX::COMMAND;
 				}
 				queSerialRx.pop();
@@ -169,7 +184,7 @@ bool Qucc::parseQuccState() {
 				if (recv[QUCC_RX_STATUS_IDX] == QUCC_RX_STATUS_VAL) {
 					state = FSM_QUCC_RX::LENGTH;
 				} else {
-					printf("FSM_QUCC_RX::STATUS not Match \n");
+					RCLCPP_INFO(node->get_logger(), "FSM_QUCC_RX::STATUS not Match");
 					state = FSM_QUCC_RX::STATUS;
 				}
 				queSerialRx.pop();
@@ -182,7 +197,7 @@ bool Qucc::parseQuccState() {
 				if (recv[QUCC_RX_LENGTH_IDX] == QUCC_RX_LENGTH_VAL) {
 					state = FSM_QUCC_RX::DATA;
 				} else {
-					printf("FSM_QUCC_RX::LENGTH not Match \n");
+					RCLCPP_INFO(node->get_logger(), "FSM_QUCC_RX::LENGTH not Match");
 					state = FSM_QUCC_RX::LENGTH;
 				}
 				#else
@@ -221,11 +236,11 @@ bool Qucc::parseQuccState() {
 				if (recv[QUCC_RX_END_IDX] == QUCC_RX_END_VAL) {
 					state = FSM_QUCC_RX::OK;
 				} else {
-					printf("FSM_QUCC_RX::END not Match\n");
+					RCLCPP_INFO(node->get_logger(), "FSM_QUCC_RX::END not Match");
 					for (int i=0; i<QUCC_RX_LEN; i++) {
-						printf("[%02x]", recv[i]);
+						RCLCPP_INFO(node->get_logger(), "[%02x]", recv[i]);
 					}
-					printf("\n");
+					RCLCPP_INFO(node->get_logger(), "");
 					state = FSM_QUCC_RX::START;
 				}
 				queSerialRx.pop();
@@ -241,7 +256,7 @@ bool Qucc::parseQuccState() {
 					#endif
 					_quccInfo = parseRxData(_quccData);
 				} else {
-					printf("QUCC_RX_STATUS_VAL is not ZERO : 0x%x\n", recv[QUCC_RX_STATUS_IDX]);
+					RCLCPP_INFO(node->get_logger(), "QUCC_RX_STATUS_VAL is not ZERO : 0x%x", recv[QUCC_RX_STATUS_IDX]);
 				}
 			}
 
@@ -260,7 +275,7 @@ bool Qucc::parseQuccState() {
 }
 
 QuccInfo Qucc::parseRxData(QuccData quccData) {
-	static QuccInfo quccInfo = {0, };
+	static QuccInfo quccInfo;
 
 #if 1
 	// 총전압(raw unit: 10mV)
@@ -349,33 +364,33 @@ QuccInfo Qucc::parseRxData(QuccData quccData) {
 #endif
 
 	#if 0
-	printf("총전압(raw unit: 10mV) : %d\n", quccData.total_voltage_10mv);
-	printf("총전압(V) : %.3lf\n", quccInfo.voltage_v);
-	printf("전류(raw unit: 10mA) : %d\n", quccData.current_10ma);
-	printf("전류(A) : %.3lf\n", quccInfo.current_a);
-	printf("잔여용량(raw unit: 10mAh) : %d\n", quccData.remaining_capacity_10mah);
-	printf("잔여용량(Ah) : %.3lf\n", quccInfo.remaining_capacity_ah);
-	printf("총용량(raw unit: 10mAh) : %d\n", quccData.norminal_capacity_10mah);
-	printf("총용량(Ah) : %.3lf\n", quccInfo.norminal_capacity_ah);
-	printf("사이클 횟수 : %d\n", quccData.number_of_cycles);
-	printf("제조일 : %d\n", quccData.production_date);
-	printf("low balanced : %d\n", quccData.balanced_state);
-	printf("high balanced : %d\n", quccData.balanced_state_high);
-	printf("보호 상태 : %d\n", quccData.protection_status);
-	printf("소프트웨어버전 : %d\n", quccData.software_version);
-	printf("잔여용량(%%) : %d\n", quccData.rsoc);
-	printf("MOS 상태 : %d\n", quccData.fet_control_state);
-	printf("충전 : %d, 방전 : %d\n", quccInfo.charging, quccInfo.discharging);
-	printf("셀 수량 : %d\n", quccData.number_of_battery_strings);
-	printf("온도계 수량 : %d\n", quccData.number_of_ntc);
-	printf("ntc1 : %d\n", quccData.ntc_1st);
-	printf("온도1 : %.3lf\n", quccInfo.celsius_1st);
-	printf("ntc2 : %d\n", quccData.ntc_2nd);
-	printf("온도2 : %.3lf\n", quccInfo.celsius_2nd);
-	printf("ntc3 : %d\n", quccData.ntc_3rd);
-	printf("온도3 : %.3lf\n", quccInfo.celsius_3rd);
-	printf("ntc4 : %d\n", quccData.ntc_4th);
-	printf("온도4 : %.3lf\n", quccInfo.celsius_4th);
+	RCLCPP_INFO(node->get_logger(), "총전압(raw unit: 10mV) : %d", quccData.total_voltage_10mv);
+	RCLCPP_INFO(node->get_logger(), "총전압(V) : %.3lf", quccInfo.voltage_v);
+	RCLCPP_INFO(node->get_logger(), "전류(raw unit: 10mA) : %d", quccData.current_10ma);
+	RCLCPP_INFO(node->get_logger(), "전류(A) : %.3lf", quccInfo.current_a);
+	RCLCPP_INFO(node->get_logger(), "잔여용량(raw unit: 10mAh) : %d", quccData.remaining_capacity_10mah);
+	RCLCPP_INFO(node->get_logger(), "잔여용량(Ah) : %.3lf", quccInfo.remaining_capacity_ah);
+	RCLCPP_INFO(node->get_logger(), "총용량(raw unit: 10mAh) : %d", quccData.norminal_capacity_10mah);
+	RCLCPP_INFO(node->get_logger(), "총용량(Ah) : %.3lf", quccInfo.norminal_capacity_ah);
+	RCLCPP_INFO(node->get_logger(), "사이클 횟수 : %d", quccData.number_of_cycles);
+	RCLCPP_INFO(node->get_logger(), "제조일 : %d", quccData.production_date);
+	RCLCPP_INFO(node->get_logger(), "low balanced : %d", quccData.balanced_state);
+	RCLCPP_INFO(node->get_logger(), "high balanced : %d", quccData.balanced_state_high);
+	RCLCPP_INFO(node->get_logger(), "보호 상태 : %d", quccData.protection_status);
+	RCLCPP_INFO(node->get_logger(), "소프트웨어버전 : %d", quccData.software_version);
+	RCLCPP_INFO(node->get_logger(), "잔여용량(%%) : %d", quccData.rsoc);
+	RCLCPP_INFO(node->get_logger(), "MOS 상태 : %d", quccData.fet_control_state);
+	RCLCPP_INFO(node->get_logger(), "충전 : %d, 방전 : %d", quccInfo.charging, quccInfo.discharging);
+	RCLCPP_INFO(node->get_logger(), "셀 수량 : %d", quccData.number_of_battery_strings);
+	RCLCPP_INFO(node->get_logger(), "온도계 수량 : %d", quccData.number_of_ntc);
+	RCLCPP_INFO(node->get_logger(), "ntc1 : %d", quccData.ntc_1st);
+	RCLCPP_INFO(node->get_logger(), "온도1 : %.3lf", quccInfo.celsius_1st);
+	RCLCPP_INFO(node->get_logger(), "ntc2 : %d", quccData.ntc_2nd);
+	RCLCPP_INFO(node->get_logger(), "온도2 : %.3lf", quccInfo.celsius_2nd);
+	RCLCPP_INFO(node->get_logger(), "ntc3 : %d", quccData.ntc_3rd);
+	RCLCPP_INFO(node->get_logger(), "온도3 : %.3lf", quccInfo.celsius_3rd);
+	RCLCPP_INFO(node->get_logger(), "ntc4 : %d", quccData.ntc_4th);
+	RCLCPP_INFO(node->get_logger(), "온도4 : %.3lf", quccInfo.celsius_4th);
 	#endif
 
 	isParsed = true;
@@ -389,7 +404,7 @@ int Qucc::isValidChecksum(uint8_t* recv) {
 	qucc_rx_start_val = recv[QUCC_RX_START_IDX];
 
 	if (qucc_rx_start_val != QUCC_RX_START_VAL) {
-		printf("invalid start: 0x%02x\n", qucc_rx_start_val);
+		RCLCPP_INFO(node->get_logger(), "invalid start: 0x%02x", qucc_rx_start_val);
 
 		return QUCC_RX_INVALID;
 	}
@@ -401,7 +416,7 @@ int Qucc::isValidChecksum(uint8_t* recv) {
 	qucc_rx_end_val = recv[qucc_rx_end_idx];
 
 	if (qucc_rx_end_val != QUCC_RX_END_VAL) {
-		printf("invalid end: 0x%02x\n", qucc_rx_end_val);
+		RCLCPP_INFO(node->get_logger(), "invalid end: 0x%02x", qucc_rx_end_val);
 
 		return QUCC_RX_INVALID;
 	}
@@ -435,7 +450,7 @@ int Qucc::isValidChecksum(uint8_t* recv) {
 	#endif
 
 	if (checksum != qucc_rx_checksum_val) {
-		printf("invalid checksum: 0x%x, qucc_rx_checksum_val: 0x%x\n", checksum, qucc_rx_checksum_val);
+		RCLCPP_INFO(node->get_logger(), "invalid checksum: 0x%x, qucc_rx_checksum_val: 0x%x", checksum, qucc_rx_checksum_val);
 		return QUCC_RX_INVALID;
 	}
 

@@ -1,17 +1,19 @@
 <launch>
-  <!-- <arg name="message_display" default="screen" description="message_display"/> -->
+  <arg name="message_display" default="screen" description="message_display"/>
   <arg name="serial_port" default="/dev/recipe.driver.battery" description="serial_port"/>
   <arg name="baud_rate" default="19200" description="baud_rate"/>
   <arg name="slave_num" default="10" description="slave_num"/>
   <arg name="node_name" default="battery" description="node_name"/>
   <arg name="bms_model" default="unknown" description="bms_model"/>
+  <arg name="QUERY_BATTERY_SEC" default="1.0" description="QUERY_BATTERY_SEC"/>
 
-  <node pkg="battery" exec="battery" name="battery" output="$(var message_display)">
-  <!-- <node pkg="battery" exec="battery" name="battery" output="screen"> -->
+  <!-- <node pkg="battery" exec="battery" name="battery" output="$(var message_display)"> -->
+  <node pkg="battery" exec="battery" name="battery" output="screen">
     <param name="serial_port" value="$(var serial_port)"/>
     <param name="baud_rate" value="$(var baud_rate)"/>
     <param name="slave_num" value="$(var slave_num)"/>
     <param name="node_name" value="$(var node_name)"/>
     <param name="bms_model" value="$(var bms_model)"/>
+    <param name="QUERY_BATTERY_SEC" value="$(var QUERY_BATTERY_SEC)"/>
   </node>
 </launch>

@@ -38,6 +38,7 @@ int main(int argc, char* argv[])
 	int baud_rate;
 	int slave_num;
 	std::string bms_model;
+	double QUERY_BATTERY_SEC;
 
 	// #if 0
 	// ros::param::get("~serial_port", serial_port);
@@ -56,11 +57,22 @@ int main(int argc, char* argv[])
 	slave_num = param_slave_num.as_int();
 	rclcpp::Parameter param_bms_model = node->get_parameter("bms_model");
 	bms_model = param_bms_model.as_string();
+	rclcpp::Parameter param_QUERY_BATTERY_SEC = node->get_parameter("QUERY_BATTERY_SEC");
+	QUERY_BATTERY_SEC = param_QUERY_BATTERY_SEC.as_double();
+
+	#if 1
+	auto parameters_and_prefixes = node->list_parameters({}, 0);
+	rclcpp::Parameter value;
+	for (auto name: parameters_and_prefixes.names) {
+		value = node->get_parameter(name.c_str());
+		RCLCPP_INFO(node->get_logger(), "Param[name:%s, value:%s]", name.c_str(), value.value_to_string().c_str());
+	}
+	#endif
 
 	RCLCPP_INFO(node->get_logger(), "%s, %d", serial_port.c_str(), baud_rate);
 
-	printf("FILE NAME : %s\n", __FILENAME__);
-	printf("BMS MODEL : %s\n", bms_model.c_str());
+	RCLCPP_INFO(node->get_logger(), "FILE NAME : %s", __FILENAME__);
+	RCLCPP_INFO(node->get_logger(), "BMS MODEL : %s", bms_model.c_str());
 
 	// ros::Publisher battery_pub = nh.advertise<sensor_msgs::BatteryState>("battery", 1000, true);
 	rclcpp::Publisher<sensor_msgs::msg::BatteryState>::SharedPtr battery_pub =
@@ -73,9 +85,9 @@ int main(int argc, char* argv[])
 
 	realpath(serial_port.c_str(), real_name);
 
-	printf("%s->%s %d\n", serial_port.c_str(), real_name, baud_rate);
+	RCLCPP_INFO(node->get_logger(), "%s->%s %d", serial_port.c_str(), real_name, baud_rate);
 
-	qucc = Qucc(real_name, baud_rate);
+	qucc = Qucc(node, real_name, baud_rate);
 
 	if (qucc.initSerial() == false) {
 		return 0;
@@ -84,7 +96,7 @@ int main(int argc, char* argv[])
 	// ros::Rate r(1000);
 	rclcpp::Rate r(1000);
 
-	#define STEP_TIME 1.0
+	// #define QUERY_BATTERY_SEC 1.0
 	// double time_cur = ros::Time::now().toSec();
 	double time_cur = rclcpp::Clock().now().seconds();
 	double time_pre = time_cur;
@@ -110,14 +122,14 @@ int main(int argc, char* argv[])
 			battery_pub->publish(batteryState);
 
 			#if 1
-			printf("%lf: %6.2f V, %6.2f A, %6.2f %%\n", time_cur, qucc._quccInfo.voltage_v, qucc._quccInfo.current_a, qucc._quccInfo.remaining_capacity_percent);
+			RCLCPP_INFO(node->get_logger(), "%lf: %6.2f V, %6.2f A, %6.2f %%", time_cur, qucc._quccInfo.voltage_v, qucc._quccInfo.current_a, qucc._quccInfo.remaining_capacity_percent);
 			#endif
 		}
 
 		// time_cur = ros::Time::now().toSec();
 		time_cur = rclcpp::Clock().now().seconds();
 		time_diff = time_cur - time_pre;
-		if ( time_diff > STEP_TIME ) {
+		if ( time_diff > QUERY_BATTERY_SEC ) {
 			qucc.sendQuccCmd();
 
 			time_pre = time_cur;
