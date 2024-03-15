@@ -23,11 +23,10 @@ find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(sensor_msgs REQUIRED)
-find_package(PkgConfig REQUIRED)
-pkg_check_modules(LIBSERIAL libserial)
+find_package(serial REQUIRED)
 
 add_executable(battery src/qucc/main.cpp src/qucc/qucc.cpp)
-ament_target_dependencies(battery rclcpp std_msgs sensor_msgs LIBSERIAL)
+ament_target_dependencies(battery rclcpp std_msgs sensor_msgs serial)
 target_include_directories(battery PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include>)

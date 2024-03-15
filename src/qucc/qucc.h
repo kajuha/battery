@@ -5,8 +5,7 @@
 #include <string>
 #include <queue>
 
-// #include <serial/serial.h>
-#include <libserial/SerialPort.h>
+#include <serial/serial.h>
 
 #define SWAP_BYTE 1
 #define SHIFT_BIT (SWAP_BYTE*8)
@@ -161,10 +160,8 @@ public:
 	int baudrate;
 	std::queue<uint8_t> queSerialRx;
 
-	// serial::Serial *ser;
-	LibSerial::SerialPort *ser;
+	serial::Serial *ser;
 	uint8_t serialBufferRx[BUFSIZ];
-	std::string rx_string;
 	uint8_t serialBufferTx[BUFSIZ];
 
 	QuccData _quccData;
@@ -173,7 +170,7 @@ public:
 	bool isParsed;
 	
 	Qucc();
-	Qucc(rclcpp::Node::SharedPtr node, std::string serialPort, int baudrate);
+	Qucc(rclcpp::Node::SharedPtr& node, std::string serialPort, int baudrate);
 
 	bool initSerial();
 	void closeSerial();

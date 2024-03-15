@@ -143,5 +143,7 @@ int main(int argc, char* argv[])
 
 	qucc.closeSerial();
 
+	rclcpp::shutdown();
+
 	return 0;
 }
