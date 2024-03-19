@@ -24,8 +24,6 @@
 
 using namespace std;
 
-Qucc qucc;
-
 int main(int argc, char* argv[])
 {
 	// ros::init(argc, argv, "battery");
@@ -87,7 +85,7 @@ int main(int argc, char* argv[])
 
 	RCLCPP_INFO(node->get_logger(), "%s->%s %d", serial_port.c_str(), real_name, baud_rate);
 
-	qucc = Qucc(node, real_name, baud_rate);
+	Qucc qucc = Qucc(node, real_name, baud_rate);
 
 	if (qucc.initSerial() == false) {
 		return 0;
